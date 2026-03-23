@@ -1,24 +1,115 @@
 # Modal Cloud GPU Setup
 
-Modal is an alternative cloud GPU provider for the toolkit's AI tools. All cloud GPU tools support both RunPod (`--cloud runpod`) and Modal (`--cloud modal`).
+Modal is the recommended cloud GPU provider for the toolkit's AI tools. It offers $30/month free compute on the Starter plan, fast cold starts, and scale-to-zero billing.
 
-## Why Dual Cloud GPU Support?
+> **Fastest path:** Run `/setup` in Claude Code — it handles Modal installation, deployment, and `.env` configuration interactively. This doc is the reference for what `/setup` does under the hood, and for manual setup.
 
-We added Modal alongside RunPod after a weekend of RunPod reliability issues (March 2026). Having two providers means:
+## Create a Modal Account
 
-- **No single point of failure** — if one provider is down, switch to the other with `--cloud modal` or `--cloud runpod`
-- **Faster cold starts** — Modal typically spins up containers faster than RunPod serverless
-- **Scale to zero** — both providers only charge when actively processing (no idle costs)
-- **Same interface** — all tools use `--cloud runpod|modal`, same payloads, same results
+1. Go to [modal.com](https://modal.com/) and sign up
+2. Choose the **Starter plan** — $30/month free compute, just requires a payment method
+3. Typical toolkit usage is $1-2/month, well within the free allowance
+4. All apps scale to zero — no charges when idle
 
-RunPod remains the default (`--cloud runpod`) for backward compatibility.
+## Install & Authenticate
 
-## Cloud GPU Tools
+```bash
+pip install modal
+python3 -m modal setup    # Opens browser to authenticate, saves token to ~/.modal.toml
+modal app list             # Verify it works
+```
 
-All 7 cloud GPU tools support both providers:
+## Deploy Tools
 
-| Tool | Backend | Use Case | Est. Cost (Modal) |
-|------|---------|----------|-------------------|
+Each AI tool has its own Modal app. Deploy only what you need, or deploy all of them — idle apps cost nothing.
+
+```bash
+# Speech generation (most commonly used)
+modal deploy docker/modal-qwen3-tts/app.py
+
+# Image generation & editing
+modal deploy docker/modal-flux2/app.py
+modal deploy docker/modal-image-edit/app.py
+modal deploy docker/modal-upscale/app.py
+
+# Music generation
+modal deploy docker/modal-music-gen/app.py
+
+# Video processing
+modal deploy docker/modal-sadtalker/app.py
+modal deploy docker/modal-propainter/app.py
+```
+
+Each deploy prints an endpoint URL like:
+```
+https://yourname--video-toolkit-qwen3-tts-ttsengine-generate.modal.run
+```
+
+Save each URL to your `.env` file:
+
+```bash
+# Add to .env (replace with your actual URLs from deploy output)
+MODAL_QWEN3_TTS_ENDPOINT_URL=https://yourname--video-toolkit-qwen3-tts-...modal.run
+MODAL_FLUX2_ENDPOINT_URL=https://yourname--video-toolkit-flux2-...modal.run
+MODAL_IMAGE_EDIT_ENDPOINT_URL=https://yourname--video-toolkit-image-edit-...modal.run
+MODAL_UPSCALE_ENDPOINT_URL=https://yourname--video-toolkit-upscale-...modal.run
+MODAL_MUSIC_GEN_ENDPOINT_URL=https://yourname--video-toolkit-music-gen-...modal.run
+MODAL_SADTALKER_ENDPOINT_URL=https://yourname--video-toolkit-sadtalker-...modal.run
+MODAL_DEWATERMARK_ENDPOINT_URL=https://yourname--video-toolkit-dewatermark-...modal.run
+```
+
+> **Tip:** `/setup` automates this — it runs each deploy, parses the URL, and writes it to `.env` for you.
+
+## Cloudflare R2 (Recommended)
+
+R2 is free file storage that bridges your local machine and cloud GPUs. Without it, tools fall back to free upload services (slower, less reliable).
+
+**R2 free tier:** 10GB storage, 10 million operations/month, zero egress fees.
+
+See the R2 section in `/setup`, or configure manually:
+
+1. Sign up at [dash.cloudflare.com](https://dash.cloudflare.com/)
+2. Go to R2 Object Storage → Create bucket (name it `video-toolkit`)
+3. Create an API token: R2 → Manage R2 API Tokens → Object Read & Write
+4. Add to `.env`:
+   ```
+   R2_ACCOUNT_ID=your_account_id
+   R2_ACCESS_KEY_ID=your_access_key_id
+   R2_SECRET_ACCESS_KEY=your_secret_access_key
+   R2_BUCKET_NAME=video-toolkit
+   ```
+
+## Use the Tools
+
+All cloud GPU tools accept `--cloud modal`:
+
+```bash
+# AI voiceover
+python3 tools/qwen3_tts.py --text "Hello world" --speaker Ryan --output hello.mp3 --cloud modal
+
+# AI image generation
+python3 tools/flux2.py --prompt "A sunset over mountains" --output sunset.png --cloud modal
+
+# AI image editing
+python3 tools/image_edit.py --input photo.jpg --style cyberpunk --cloud modal
+
+# AI upscaling
+python3 tools/upscale.py --input photo.jpg --output photo_4x.png --cloud modal
+
+# AI music generation
+python3 tools/music_gen.py --preset corporate-bg --duration 60 --output bg.mp3 --cloud modal
+
+# Talking head from portrait + audio
+python3 tools/sadtalker.py --image portrait.png --audio voiceover.mp3 --output talking.mp4 --cloud modal
+
+# Watermark removal
+python3 tools/dewatermark.py --input video.mp4 --region 1080,660,195,40 --output clean.mp4 --cloud modal
+```
+
+## Tools & Costs
+
+| Tool | Backend | Use Case | Est. Cost |
+|------|---------|----------|-----------|
 | `qwen3_tts` | Qwen3-TTS | AI speech generation | ~$0.005-0.02 |
 | `flux2` | FLUX.2 Klein | AI image generation | ~$0.01-0.03 |
 | `image_edit` | Qwen-Image-Edit | AI image editing, style transfer | ~$0.02-0.05 |
@@ -27,46 +118,11 @@ All 7 cloud GPU tools support both providers:
 | `sadtalker` | SadTalker | Talking head video | ~$0.05-0.30 |
 | `dewatermark` | ProPainter | AI video inpainting | ~$0.05-0.50 |
 
-All Modal apps use A10G GPUs (24GB VRAM) and scale to zero when idle.
-
-## Quick Start
-
-```bash
-# 1. Install Modal CLI
-pip install modal
-python3 -m modal setup    # Authenticates with your Modal account
-
-# 2. Deploy the tools you need
-modal deploy docker/modal-qwen3-tts/app.py      # Speech generation
-modal deploy docker/modal-flux2/app.py           # Image generation
-modal deploy docker/modal-image-edit/app.py      # Image editing
-modal deploy docker/modal-upscale/app.py         # Image upscaling
-modal deploy docker/modal-music-gen/app.py       # Music generation
-modal deploy docker/modal-sadtalker/app.py       # Talking head video
-modal deploy docker/modal-propainter/app.py      # Watermark removal
-
-# 3. Save the endpoint URLs to .env (printed after each deploy)
-#    Each deploy prints a URL like:
-#    https://yourname--video-toolkit-upscale-upscaler-upscale.modal.run
-#
-#    Add them to .env:
-echo "MODAL_QWEN3_TTS_ENDPOINT_URL=https://..." >> .env
-echo "MODAL_FLUX2_ENDPOINT_URL=https://..." >> .env
-echo "MODAL_IMAGE_EDIT_ENDPOINT_URL=https://..." >> .env
-echo "MODAL_UPSCALE_ENDPOINT_URL=https://..." >> .env
-echo "MODAL_MUSIC_GEN_ENDPOINT_URL=https://..." >> .env
-echo "MODAL_SADTALKER_ENDPOINT_URL=https://..." >> .env
-echo "MODAL_DEWATERMARK_ENDPOINT_URL=https://..." >> .env
-
-# 4. Use any tool with --cloud modal
-python3 tools/image_edit.py --input photo.jpg --style cyberpunk --cloud modal
-python3 tools/upscale.py --input photo.jpg --output photo_4x.png --cloud modal
-python3 tools/music_gen.py --preset corporate-bg --duration 30 --output bg.mp3 --cloud modal
-```
+All apps use A10G GPUs (24GB VRAM) except `image_edit` which uses A100 for its 25GB model.
 
 ## Cold Starts
 
-First request after idle will trigger a cold start while Modal loads the model:
+First request after idle triggers a cold start while Modal loads the model:
 
 | Tool | Cold Start | Warm Request |
 |------|-----------|--------------|
@@ -76,7 +132,7 @@ First request after idle will trigger a cold start while Modal loads the model:
 | `upscale` | ~25-30s | ~3-5s |
 | `music_gen` | ~60-90s | ~10-30s |
 | `sadtalker` | ~45-60s | ~30-60s |
-| `dewatermark` | ~30-45s | varies by video length |
+| `dewatermark` | ~60-70s | varies by video length |
 
 After 60 seconds of no requests, containers scale back to zero. No charges while idle.
 
@@ -91,6 +147,9 @@ modal billing report --for today --json
 
 # View container logs
 modal app logs video-toolkit-upscale
+
+# Verify your setup
+python3 tools/verify_setup.py
 ```
 
 ## Architecture
@@ -99,19 +158,21 @@ Each tool has its own Modal app (`docker/modal-*/app.py`), deployed independentl
 
 - **One app per tool** — independent scaling, GPU assignment, and lifecycle
 - **Web endpoints** — HTTP POST via `@modal.fastapi_endpoint`, no `modal` pip dependency needed on the client
-- **Same payload format** — tools send `{"input": {...}}` to both RunPod and Modal
 - **R2 file transfer** — large results upload to Cloudflare R2 (if configured), otherwise base64
 - **Scale to zero** — `scaledown_window=60` means containers shut down after 1 minute idle
 
 The client-side abstraction lives in `tools/cloud_gpu.py`, which routes `call_cloud_endpoint()` to either `_call_runpod()` (submit + poll) or `_call_modal()` (synchronous POST).
 
-## Differences from RunPod
+## RunPod (Alternative)
 
-| Aspect | RunPod | Modal |
-|--------|--------|-------|
-| Setup | `--setup` flag (automated GraphQL) | `modal deploy` (manual) |
-| Invocation | Async submit + poll | Synchronous HTTP POST |
-| Cold start | Slower (Docker pull) | Faster (cached layers) |
-| GPU selection | Per-endpoint config | Per-app in `app.py` |
-| Auth | `RUNPOD_API_KEY` | `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` (optional for web endpoints) |
-| Default | Yes (`--cloud runpod`) | Opt-in (`--cloud modal`) |
+RunPod is also supported as a fallback provider. Use `--cloud runpod` on any tool.
+
+| Aspect | Modal | RunPod |
+|--------|-------|--------|
+| **Free tier** | $30/mo compute | None (pay-as-you-go) |
+| **Setup** | `modal deploy` | `--setup` flag per tool |
+| **Cold start** | Faster (cached layers) | Slower (Docker pull) |
+| **Invocation** | Synchronous POST | Async submit + poll |
+| **Auth** | Token optional for web endpoints | `RUNPOD_API_KEY` required |
+
+See [runpod-setup.md](runpod-setup.md) for RunPod-specific instructions.
