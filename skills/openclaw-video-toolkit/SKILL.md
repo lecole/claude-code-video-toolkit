@@ -6,7 +6,6 @@ metadata:
     os: ["darwin", "linux"]
     requires:
       bins: ["node", "python3", "ffmpeg", "npm"]
-      env: ["MODAL_QWEN3_TTS_ENDPOINT_URL"]
 ---
 
 # Video Toolkit — OpenClaw Skill
@@ -15,20 +14,92 @@ metadata:
 
 Create professional explainer videos from a text brief. The toolkit uses open-source AI models running on cloud GPUs (Modal) for voiceover, image generation, music, and talking head animation. Remotion (React) handles composition and rendering.
 
-## Prerequisites
+## Setup (First Run)
 
-Before starting, verify the toolkit is set up:
+Run the verification script to check current state:
 
 ```bash
 python3 tools/verify_setup.py --json
 ```
 
-Check the `summary` field. You need at minimum:
-- `prerequisites: true` — Node.js 18+, Python 3.9+, FFmpeg
-- `cloud_gpu: true` — At least one provider configured (Modal recommended)
-- `voice: true` — Qwen3-TTS endpoint configured
+If `summary.cloud_gpu` is false, you need to set up Modal. This is a one-time process.
 
-If setup is incomplete, guide the user through `docs/modal-setup.md` or tell them to run `/setup` in Claude Code.
+### Install Modal CLI
+
+```bash
+pip3 install modal
+python3 -m modal setup   # Opens browser for authentication
+```
+
+### Install Python Dependencies
+
+```bash
+pip3 install -r tools/requirements.txt
+```
+
+### Deploy Tools to Modal
+
+Each tool is a separate Modal app. Deploy them and capture the endpoint URLs:
+
+```bash
+# Deploy each tool — the output contains the endpoint URL
+# Look for the line: "Created web endpoint for ... => https://...modal.run"
+
+modal deploy docker/modal-qwen3-tts/app.py    # Speech (most important)
+modal deploy docker/modal-flux2/app.py         # Image generation
+modal deploy docker/modal-music-gen/app.py     # Background music
+modal deploy docker/modal-sadtalker/app.py     # Talking head narrator
+modal deploy docker/modal-image-edit/app.py    # Image editing
+modal deploy docker/modal-upscale/app.py       # Image upscaling
+modal deploy docker/modal-propainter/app.py    # Watermark removal
+```
+
+After each deploy, Modal prints a URL like:
+```
+https://username--video-toolkit-flux2-flux2-generate.modal.run
+```
+
+### Save Endpoint URLs to .env
+
+Create or update `.env` in the toolkit root with the URLs from each deploy:
+
+```bash
+# Create .env if it doesn't exist
+touch .env
+
+# Add each endpoint URL (replace with actual URLs from deploy output)
+echo 'MODAL_QWEN3_TTS_ENDPOINT_URL=https://username--video-toolkit-qwen3-tts-ttsengine-generate.modal.run' >> .env
+echo 'MODAL_FLUX2_ENDPOINT_URL=https://username--video-toolkit-flux2-flux2-generate.modal.run' >> .env
+echo 'MODAL_MUSIC_GEN_ENDPOINT_URL=https://username--video-toolkit-music-gen-musicgen-generate.modal.run' >> .env
+echo 'MODAL_SADTALKER_ENDPOINT_URL=https://username--video-toolkit-sadtalker-sadtalkergen-generate.modal.run' >> .env
+echo 'MODAL_IMAGE_EDIT_ENDPOINT_URL=https://username--video-toolkit-image-edit-qwenedit-edit.modal.run' >> .env
+echo 'MODAL_UPSCALE_ENDPOINT_URL=https://username--video-toolkit-upscale-upscaler-upscale.modal.run' >> .env
+echo 'MODAL_DEWATERMARK_ENDPOINT_URL=https://username--video-toolkit-dewatermark-dewatermark-dewatermark.modal.run' >> .env
+```
+
+### Optional: Cloudflare R2 (Recommended)
+
+R2 provides reliable file transfer between your machine and cloud GPUs. Free tier: 10GB storage, zero egress. Without it, tools fall back to free upload services (slower, less reliable).
+
+If the user has R2 credentials, add to `.env`:
+```
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=video-toolkit
+```
+
+### Verify Setup
+
+Run verification again to confirm everything is configured:
+
+```bash
+python3 tools/verify_setup.py
+```
+
+All tools should show as configured. Modal apps scale to zero when idle — no ongoing cost.
+
+**Cost:** Modal Starter plan includes $30/month free compute. A typical 60s video costs $1-3 to produce.
 
 ## End-to-End Workflow
 
