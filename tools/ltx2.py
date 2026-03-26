@@ -28,17 +28,15 @@ Examples:
 
 import argparse
 import base64
-import json
 import sys
 from pathlib import Path
 from typing import Optional
 
 try:
-    import requests
     from dotenv import load_dotenv
 except ImportError as e:
     print(f"Missing dependency: {e}")
-    print("Install with: pip install requests python-dotenv")
+    print("Install with: pip install python-dotenv")
     sys.exit(1)
 
 load_dotenv()
