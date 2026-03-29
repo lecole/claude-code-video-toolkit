@@ -16,6 +16,8 @@ import modal
 app = modal.App("video-toolkit-sadtalker")
 
 CHUNK_DURATION = 45  # seconds — split long audio to prevent drift
+CHUNK_TIMEOUT_MULTIPLIER = 12  # ~10x processing per second of audio + margin
+CHUNK_TIMEOUT_BUFFER = 120  # 2 min buffer for model init, file I/O per chunk
 
 # Model weight URLs (baked into image at build time)
 SADTALKER_WEIGHTS = {
@@ -101,7 +103,7 @@ image = (
 @app.cls(
     image=image,
     gpu="A10G",
-    timeout=1800,
+    timeout=7200,  # 2 hours — long audio (5+ chunks) needs room; per-chunk timeout is the real guard
     scaledown_window=60,
 )
 @modal.concurrent(max_inputs=1)
@@ -233,8 +235,25 @@ class SadTalkerGen:
 
             # Process each chunk
             video_chunks = []
+            job_start = time.time()
             for i, chunk in enumerate(audio_chunks):
-                print(f"Processing chunk {i + 1}/{len(audio_chunks)}...")
+                # Get chunk duration for dynamic timeout
+                chunk_duration = CHUNK_DURATION  # default
+                try:
+                    dur_result = subprocess.run(
+                        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                         "-of", "default=noprint_wrappers=1:nokey=1", str(chunk)],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    chunk_duration = float(dur_result.stdout.strip())
+                except Exception:
+                    pass
+                chunk_timeout = int(chunk_duration * CHUNK_TIMEOUT_MULTIPLIER + CHUNK_TIMEOUT_BUFFER)
+
+                elapsed_total = time.time() - job_start
+                print(f"Processing chunk {i + 1}/{len(audio_chunks)} "
+                      f"({chunk_duration:.0f}s audio, timeout={chunk_timeout}s, "
+                      f"elapsed={elapsed_total:.0f}s)...")
                 chunk_out = work_dir / f"output_{i:03d}"
                 chunk_out.mkdir()
 
@@ -256,12 +275,15 @@ class SadTalkerGen:
 
                 proc = subprocess.run(
                     cmd, cwd="/app/SadTalker",
-                    capture_output=True, text=True, timeout=1800,
+                    capture_output=True, text=True, timeout=chunk_timeout,
                 )
 
+                chunk_elapsed = time.time() - job_start - elapsed_total
                 if proc.returncode != 0:
+                    print(f"Chunk {i + 1} failed after {chunk_elapsed:.0f}s")
                     print(f"SadTalker stderr: {proc.stderr[-500:]}")
                     return {"error": f"Chunk {i + 1} failed: {proc.stderr[-300:]}"}
+                print(f"Chunk {i + 1}/{len(audio_chunks)} done in {chunk_elapsed:.0f}s")
 
                 # Find output video
                 video_path = None

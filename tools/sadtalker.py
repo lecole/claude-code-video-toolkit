@@ -173,8 +173,8 @@ def process_with_cloud(
         print(f"Cloud provider: {cloud}", file=sys.stderr)
 
     # Auto-calculate timeout if not specified
+    audio_duration = get_audio_duration(audio_path)
     if timeout <= 0:
-        audio_duration = get_audio_duration(audio_path)
         if audio_duration:
             timeout = calculate_timeout(audio_duration)
             if verbose:
@@ -183,6 +183,17 @@ def process_with_cloud(
             timeout = 900  # Default 15 minutes
             if verbose:
                 print(f"Could not determine audio duration, using default timeout: {timeout}s", file=sys.stderr)
+
+    # Pre-flight estimate
+    if verbose and audio_duration:
+        chunk_duration = 45  # matches CHUNK_DURATION in Modal app
+        num_chunks = max(1, int(audio_duration / chunk_duration) + (1 if audio_duration % chunk_duration > 0 else 0))
+        est_minutes = (audio_duration * PROCESSING_TIME_MULTIPLIER) / 60
+        # A10G cost: ~$0.000362/sec
+        est_cost = (audio_duration * PROCESSING_TIME_MULTIPLIER + PROCESSING_TIME_BUFFER) * 0.000362
+        print(f"Estimate: {num_chunks} chunk{'s' if num_chunks > 1 else ''}, "
+              f"~{est_minutes:.0f} min processing, ~${est_cost:.2f} GPU cost",
+              file=sys.stderr)
 
     # Upload image
     image_url, image_r2_key = upload_to_storage(image_path, "sadtalker/input")
