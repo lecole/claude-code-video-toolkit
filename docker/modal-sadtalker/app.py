@@ -16,8 +16,8 @@ import modal
 app = modal.App("video-toolkit-sadtalker")
 
 CHUNK_DURATION = 45  # seconds — split long audio to prevent drift
-CHUNK_TIMEOUT_MULTIPLIER = 12  # ~10x processing per second of audio + margin
-CHUNK_TIMEOUT_BUFFER = 120  # 2 min buffer for model init, file I/O per chunk
+CHUNK_TIMEOUT_MULTIPLIER = 20  # generous: size=512 + gfpgan on A10G can be slow
+CHUNK_TIMEOUT_BUFFER = 300  # 5 min buffer for first-chunk model loading into VRAM
 
 # Model weight URLs (baked into image at build time)
 SADTALKER_WEIGHTS = {

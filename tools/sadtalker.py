@@ -50,8 +50,8 @@ SADTALKER_TEMPLATE_NAME = "video-toolkit-sadtalker"
 SADTALKER_ENDPOINT_NAME = "video-toolkit-sadtalker"
 
 # Processing time estimate: ~4 minutes per minute of audio + buffer
-PROCESSING_TIME_MULTIPLIER = 12  # ~10x processing time per second of audio + margin
-PROCESSING_TIME_BUFFER = 180  # 3 minute buffer for cold start, upload, etc.
+PROCESSING_TIME_MULTIPLIER = 20  # generous: size=512 + gfpgan on A10G can be slow
+PROCESSING_TIME_BUFFER = 360  # 6 min buffer for cold start, upload, model loading
 
 
 def get_audio_duration(audio_path: str) -> float | None:
