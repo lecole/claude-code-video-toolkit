@@ -382,7 +382,20 @@ python3 tools/chain_video.py \
 - Use `--prefix` to set output filename prefix (default: `chain`)
 - ~2.5 min per scene, ~$0.20-0.25 per clip
 
-**CRITICAL: Run this as a single command.** Don't break it into per-scene tool calls — OpenClaw's agent run ends between calls, causing the sequence to stall.
+**CRITICAL: Run with `yieldMs` for live progress reporting.** Don't break it into per-scene tool calls — OpenClaw's agent run ends between calls, causing the sequence to stall. Instead, use `exec` with `yieldMs` so you stay in the loop and can relay progress to the user:
+
+```
+exec command:"cd ~/.openclaw/workspace/claude-code-video-toolkit && python3 tools/chain_video.py --scenes-dir /path/to/images/ --output-dir /path/to/output/ --prompts-file scenes.json --progress json" yieldMs:10000
+```
+
+**How this works:**
+- `yieldMs:10000` returns control to you every 10 seconds
+- You read the `--progress json` output (JSON Lines on stderr with stage/pct/msg)
+- Report progress to the user ("Scene 05/30 complete, 17%")
+- Then poll again: `process action:poll sessionId:<id>`
+- Repeat until `"stage":"complete"` appears
+
+**This is the correct pattern for ALL long-running tool commands** (chain_video, batch flux, batch sadtalker, etc.). Never use `bash background:true` and forget about it — use `exec` + `yieldMs` + `process poll` loop so you can report progress live.
 
 #### 4e. Talking Head Narrator (optional)
 
