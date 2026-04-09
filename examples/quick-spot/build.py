@@ -22,20 +22,28 @@ Patterns demonstrated
 from __future__ import annotations
 
 import hashlib
+import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
-from moviepy import (
-    AudioFileClip,
-    ColorClip,
-    CompositeAudioClip,
-    CompositeVideoClip,
-    ImageClip,
-    vfx,
-)
-from moviepy.audio.fx.AudioFadeIn import AudioFadeIn
-from moviepy.audio.fx.AudioFadeOut import AudioFadeOut
-from moviepy.audio.fx.MultiplyVolume import MultiplyVolume
+try:
+    from PIL import Image, ImageDraw, ImageFont
+    from moviepy import (
+        AudioFileClip,
+        ColorClip,
+        CompositeAudioClip,
+        CompositeVideoClip,
+        ImageClip,
+        vfx,
+    )
+    from moviepy.audio.fx.AudioFadeIn import AudioFadeIn
+    from moviepy.audio.fx.AudioFadeOut import AudioFadeOut
+    from moviepy.audio.fx.MultiplyVolume import MultiplyVolume
+except ImportError as e:
+    print(f"Missing dependency: {e}")
+    print("Install the toolkit's Python dependencies:")
+    print("    python3 -m pip install -r ../../tools/requirements.txt")
+    print("(run from this directory, or use an absolute path)")
+    sys.exit(1)
 
 HERE = Path(__file__).resolve().parent
 PUBLIC = HERE / "public"

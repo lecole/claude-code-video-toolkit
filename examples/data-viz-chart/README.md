@@ -7,11 +7,18 @@ Renders out of the box with the included `data/star_series.json` (real GitHub st
 ## Quick start
 
 ```bash
+# From the toolkit root (one-time — installs matplotlib, moviepy, and
+# Pillow alongside the rest of the toolkit's optional Python deps):
+python3 -m pip install -r tools/requirements.txt
+
+# Then:
 cd examples/data-viz-chart
 python3 build.py
 ```
 
 First run takes ~30 seconds (matplotlib renders 450 frames, moviepy composites). Subsequent runs reuse the cached chart animation unless `data/star_series.json` is newer.
+
+> If you get a `Missing dependency` error, the script will tell you exactly which package is missing and which `pip` command to run.
 
 ## Why split matplotlib and moviepy?
 

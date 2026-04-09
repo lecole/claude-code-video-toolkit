@@ -35,23 +35,31 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
-import matplotlib
+try:
+    import matplotlib
 
-matplotlib.use("Agg")
-import matplotlib.dates as mdates  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.animation import FuncAnimation  # noqa: E402
-from PIL import Image, ImageDraw, ImageFont  # noqa: E402
-from moviepy import (  # noqa: E402
-    ColorClip,
-    CompositeVideoClip,
-    ImageClip,
-    VideoFileClip,
-    vfx,
-)
+    matplotlib.use("Agg")
+    import matplotlib.dates as mdates  # noqa: E402
+    import matplotlib.pyplot as plt  # noqa: E402
+    from matplotlib.animation import FuncAnimation  # noqa: E402
+    from PIL import Image, ImageDraw, ImageFont  # noqa: E402
+    from moviepy import (  # noqa: E402
+        ColorClip,
+        CompositeVideoClip,
+        ImageClip,
+        VideoFileClip,
+        vfx,
+    )
+except ImportError as e:
+    print(f"Missing dependency: {e}")
+    print("Install the toolkit's Python dependencies:")
+    print("    python3 -m pip install -r ../../tools/requirements.txt")
+    print("(run from this directory, or use an absolute path)")
+    sys.exit(1)
 
 HERE = Path(__file__).resolve().parent
 DATA = HERE / "data" / "star_series.json"

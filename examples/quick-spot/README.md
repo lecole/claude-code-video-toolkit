@@ -7,11 +7,18 @@ Renders out of the box with **zero external assets** — solid colour background
 ## Quick start
 
 ```bash
+# From the toolkit root (one-time — installs moviepy, Pillow, matplotlib
+# alongside the rest of the toolkit's optional Python deps):
+python3 -m pip install -r tools/requirements.txt
+
+# Then:
 cd examples/quick-spot
 python3 build.py
 ```
 
 That's it. ~15 seconds later you have `out.mp4` — a silent text-on-colour spot. Open it to verify the timing and layout look right.
+
+> If you get a `Missing dependency` error, the script will tell you exactly which package is missing and which `pip` command to run.
 
 ## Why moviepy instead of Remotion?
 
